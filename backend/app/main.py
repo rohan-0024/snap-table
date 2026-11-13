@@ -6,6 +6,7 @@ GET  /health
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import urllib.parse
 
@@ -22,6 +23,10 @@ from .models import ExportRequest  # noqa: E402
 from .pipeline import ExtractionError, extract  # noqa: E402
 
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "15"))
+
+# One extraction at a time: each can use ~200 MB at peak and the host allows 512 MB.
+# Extra requests wait their turn instead of doubling memory.
+_extract_slot = asyncio.Semaphore(int(os.getenv("MAX_CONCURRENT_EXTRACTS", "1")))
 ALLOWED_TYPES = {"image/png", "image/jpeg", "image/webp", "image/bmp", "image/tiff", "application/pdf"}
 
 app = FastAPI(title="SnapTable API", version="0.1.0")
@@ -60,7 +65,12 @@ async def api_extract(file: UploadFile = File(...)) -> dict:
     if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(413, f"File too large. Limit is {MAX_UPLOAD_MB} MB.")
     try:
-        return extract(data, name)
+        # OCR is CPU-bound and takes 30 s+ on a 0.1-CPU host. Running it on the event
+        # loop blocked /health for that long, so the host's health check declared the
+        # instance dead and restarted it mid-request (502 at ~30 s). A worker thread
+        # keeps the loop free; OpenCV and ONNX Runtime release the GIL while computing.
+        async with _extract_slot:
+            return await asyncio.to_thread(extract, data, name)
     except ExtractionError as e:
         raise HTTPException(422, str(e)) from e
 
