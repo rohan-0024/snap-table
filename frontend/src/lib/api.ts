@@ -37,15 +37,54 @@ async function readError(res: Response): Promise<string> {
   } catch {
     /* non-JSON body */
   }
-  return res.status === 503 || res.status === 502
-    ? 'The server is waking up after being idle. Try again in ~30 seconds.'
+  return GATEWAY_DOWN.has(res.status)
+    ? 'The server is waking up after being idle — this takes about a minute. Please try again.'
     : `Request failed (${res.status}).`
 }
 
-export async function extractTables(file: File, signal?: AbortSignal): Promise<ExtractResponse> {
-  const form = new FormData()
-  form.append('file', file, file.name || 'upload.png')
-  const res = await request('/api/extract', { method: 'POST', body: form, signal })
+export type Phase = 'waking' | 'reading'
+
+const GATEWAY_DOWN = new Set([502, 503, 504])
+const WAKE_TIMEOUT_MS = 150_000
+const WAKE_POLL_MS = 4_000
+
+/** Poll /health until the backend answers, or give up after WAKE_TIMEOUT_MS. */
+async function waitForBackend(signal?: AbortSignal): Promise<boolean> {
+  const deadline = Date.now() + WAKE_TIMEOUT_MS
+  while (Date.now() < deadline) {
+    if (signal?.aborted) return false
+    if (await pingHealth(signal)) return true
+    await new Promise((r) => setTimeout(r, WAKE_POLL_MS))
+  }
+  return false
+}
+
+/**
+ * Upload a file and get tables back. If the backend is asleep (free hosting idles
+ * out after 15 min and the gateway answers 502/503/504), wait for it to wake and
+ * retry once instead of making the person click again.
+ */
+export async function extractTables(
+  file: File,
+  signal?: AbortSignal,
+  onPhase?: (phase: Phase) => void,
+): Promise<ExtractResponse> {
+  const send = async () => {
+    const form = new FormData()
+    form.append('file', file, file.name || 'upload.png')
+    onPhase?.('reading')
+    return request('/api/extract', { method: 'POST', body: form, signal })
+  }
+
+  let res = await send()
+  if (GATEWAY_DOWN.has(res.status)) {
+    onPhase?.('waking')
+    const awake = await waitForBackend(signal)
+    if (!awake) {
+      throw new ApiError(res.status, 'The server is taking too long to wake up. Please try again in a minute.')
+    }
+    res = await send()
+  }
   if (!res.ok) throw new ApiError(res.status, await readError(res))
   return res.json()
 }
@@ -81,9 +120,9 @@ export async function exportTables(
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export async function pingHealth(): Promise<boolean> {
+export async function pingHealth(signal?: AbortSignal): Promise<boolean> {
   try {
-    const res = await request('/health', { cache: 'no-store' })
+    const res = await request('/health', { cache: 'no-store', signal })
     return res.ok
   } catch {
     return false

@@ -5,7 +5,7 @@ import HeroArt from './components/HeroArt'
 import ResultGrid from './components/ResultGrid'
 import HowItWorks from './components/HowItWorks'
 import ReportIssue from './components/ReportIssue'
-import { ApiError, exportTables, extractTables, pingHealth } from './lib/api'
+import { ApiError, exportTables, extractTables, pingHealth, type Phase } from './lib/api'
 import { gsap, magnetic, reducedMotion, splitWords } from './lib/motion'
 import type { ExtractResponse, TableData } from './lib/types'
 
@@ -21,6 +21,8 @@ export default function App() {
   const [result, setResult] = useState<ExtractResponse | null>(null)
   const [active, setActive] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [phase, setPhase] = useState<Phase>('reading')
+  const [elapsed, setElapsed] = useState(0)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [backendUp, setBackendUp] = useState<boolean | null>(null)
@@ -35,6 +37,15 @@ export default function App() {
   useEffect(() => {
     pingHealth().then(setBackendUp)
   }, [])
+
+  // Seconds counter while a conversion is in progress.
+  useEffect(() => {
+    if (!busy) return
+    setElapsed(0)
+    const t0 = Date.now()
+    const id = window.setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000)
+    return () => window.clearInterval(id)
+  }, [busy])
 
   // Hero choreography: headline words rise, supporting copy fades, marquee rolls, CTA is magnetic.
   useEffect(() => {
@@ -66,9 +77,10 @@ export default function App() {
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setBusy(true)
+    setPhase('reading')
     setError(null)
     try {
-      const res = await extractTables(file, ctrl.signal)
+      const res = await extractTables(file, ctrl.signal, setPhase)
       setResult(res)
       setActive(0)
       setBackendUp(true)
@@ -211,7 +223,7 @@ export default function App() {
             />
           ) : (
             <>
-              <Dropzone busy={busy} onFile={onFile} />
+              <Dropzone busy={busy} phase={phase} elapsed={elapsed} onFile={onFile} />
               <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-ink-300">
                 <span>No table handy? Try a sample:</span>
                 {SAMPLES.map((s) => (

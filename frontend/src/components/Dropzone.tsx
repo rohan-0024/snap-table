@@ -2,14 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ClipboardPaste, FileImage, FileText, Loader2, Upload } from 'lucide-react'
 import { gsap, reducedMotion } from '../lib/motion'
 
+import type { Phase } from '../lib/api'
+
 interface Props {
   busy: boolean
+  phase?: Phase
+  elapsed?: number
   onFile: (file: File) => void
 }
 
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/bmp,image/tiff,application/pdf'
 
-export default function Dropzone({ busy, onFile }: Props) {
+export default function Dropzone({ busy, phase = 'reading', elapsed = 0, onFile }: Props) {
   const [over, setOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -105,11 +109,16 @@ export default function Dropzone({ busy, onFile }: Props) {
       </div>
 
       <h3 className="mt-7 text-2xl font-bold text-ink-100">
-        {busy ? 'Reading your table…' : 'Drop a screenshot or PDF'}
+        {busy ? (phase === 'waking' ? 'Waking the server…' : 'Reading your table…') : 'Drop a screenshot or PDF'}
       </h3>
-      <p className="mt-2 text-ink-300">
+      <p className="mt-2 text-ink-300" aria-live="polite">
         {busy ? (
-          'Cleaning pixels, finding the grid, reading every cell.'
+          <>
+            {phase === 'waking'
+              ? 'It sleeps when idle and takes about a minute to wake. Your file will be sent automatically.'
+              : 'Cleaning pixels, finding the grid, reading every cell. Usually under a minute.'}
+            <span className="ml-2 font-mono text-sm text-lime-500">{elapsed}s</span>
+          </>
         ) : (
           <>
             or <span className="font-semibold text-lime-500 underline-offset-4 group-hover:underline">browse files</span>
