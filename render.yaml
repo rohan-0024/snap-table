@@ -1,0 +1,25 @@
+# Render Blueprint — free web service for the SnapTable backend.
+# Render dashboard → New → Blueprint → pick this repo. No credit card needed.
+# Free tier: 512 MB RAM, 0.1 CPU, sleeps after 15 min idle (first request then takes ~1 min).
+# Measured backend peak: ~230 MB, so it fits with headroom.
+services:
+  - type: web
+    name: snaptable-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    # Download OCR models during the build so they aren't fetched on every cold start.
+    buildCommand: pip install -r requirements.txt && python scripts/download_models.py
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      # Set this to your Vercel URL after the frontend is deployed, e.g. https://snaptable.vercel.app
+      - key: CORS_ORIGINS
+        value: "*"
+      # 0.1 CPU: keep ONNX Runtime to one thread so it doesn't thrash.
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MAX_PDF_PAGES
+        value: "15"

@@ -1,0 +1,11 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+opencv-python-headless>=4.9
+numpy>=1.26
+rapidocr>=2.0            # PaddleOCR PP-OCRv6 models on ONNX Runtime
+onnxruntime>=1.17
+pdfplumber>=0.11
+pymupdf>=1.24
+openpyxl>=3.1
+pillow>=10

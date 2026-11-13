@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   SnapTable — "Pixels → Cells"
+   Ink-dark canvas, cream paper sections, acid-lime / violet / coral accents.
+   Fonts: Syne (display), Space Grotesk (body), IBM Plex Mono (data).
+   ------------------------------------------------------------------ */
+@theme {
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", "Space Grotesk", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  --color-ink-950: #07070b;
+  --color-ink-900: #0b0b10;
+  --color-ink-800: #14141c;
+  --color-ink-700: #1c1c27;
+  --color-ink-600: #2a2a38;
+  --color-ink-400: #5c5c74;
+  --color-ink-300: #9a9aae;
+  --color-ink-100: #eceae4;
+
+  --color-paper-50: #faf8f3;
+  --color-paper-100: #f5f1e8;
+  --color-paper-200: #e9e3d6;
+  --color-paper-300: #d9d1bf;
+  --color-paper-900: #111111;
+
+  --color-lime-500: #c8ff4d;
+  --color-lime-600: #a9e02e;
+  --color-lime-900: #27330a;
+  --color-violet-500: #8b7cff;
+  --color-violet-600: #6f5ef5;
+  --color-coral-500: #ff6a4d;
+  --color-coral-600: #e9543a;
+
+  --shadow-pop: 6px 6px 0 0 var(--color-paper-900);
+  --shadow-pop-lime: 6px 6px 0 0 var(--color-lime-500);
+  --shadow-glow: 0 0 0 1px rgb(200 255 77 / 0.25), 0 20px 60px -20px rgb(200 255 77 / 0.35);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  @apply bg-ink-900 text-ink-100 font-sans antialiased;
+}
+
+h1, h2, h3 { @apply font-display tracking-tight; }
+
+::selection { background: var(--color-lime-500); color: var(--color-ink-900); }
+
+/* dotted "pixel" backdrop */
+.pixel-bg {
+  background-image: radial-gradient(rgb(236 234 228 / 0.10) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.pixel-bg-light {
+  background-image: radial-gradient(rgb(17 17 17 / 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* outlined display text (hero accent) */
+.text-outline {
+  -webkit-text-stroke: 1.5px var(--color-ink-100);
+  color: transparent;
+}
+
+/* Buttons & inputs */
+@utility btn-base {
+  @apply inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all
+         disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500;
+}
+@utility btn-primary {
+  @apply btn-base bg-lime-500 text-ink-900 hover:bg-lime-600 hover:-translate-y-0.5;
+}
+@utility btn-dark {
+  @apply btn-base bg-ink-900 text-paper-100 hover:bg-ink-700 hover:-translate-y-0.5;
+}
+@utility btn-outline {
+  @apply btn-base border border-ink-600 text-ink-100 hover:border-lime-500 hover:text-lime-500;
+}
+@utility btn-ghost {
+  @apply btn-base px-3 py-1.5 text-ink-300 hover:bg-ink-700 hover:text-ink-100;
+}
+@utility input-dark {
+  @apply block w-full rounded-xl border border-ink-600 bg-ink-800 px-3 py-2.5 text-ink-100 outline-none
+         placeholder:text-ink-400 focus:border-lime-500 focus:ring-2 focus:ring-lime-500/20;
+}
+@utility input-paper {
+  @apply block w-full rounded-xl border-2 border-paper-900 bg-paper-50 px-3 py-2.5 text-paper-900 outline-none
+         placeholder:text-ink-400 focus:border-violet-600 focus:ring-2 focus:ring-violet-500/20;
+}
+@utility label-mono {
+  @apply font-mono text-[11px] uppercase tracking-[0.2em];
+}
+
+/* AG Grid: low-confidence cells */
+.cell-low-conf {
+  background: rgb(255 106 77 / 0.16) !important;
+  box-shadow: inset 3px 0 0 var(--color-coral-500);
+}
+
+/* marquee */
+.marquee-track { display: flex; width: max-content; }
+
+/* Elements animated by GSAP start hidden only when motion is allowed,
+   so content is never stuck invisible if JS fails. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
