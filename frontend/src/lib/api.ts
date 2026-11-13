@@ -1,8 +1,25 @@
 import type { ExtractResponse, TableData } from './types'
 
-// Empty in dev (Vite proxies /api to FastAPI). In production set VITE_API_URL to
-// your Hugging Face Space URL, e.g. https://<user>-snaptable.hf.space
-const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+// Backend base URL, from the VITE_API_URL env key (e.g. https://snaptable-api.onrender.com).
+// When it is empty, requests go to the same origin: Vite's dev proxy locally, or the
+// vercel.json rewrite in production. When it is set but unreachable (typo, CORS, DNS),
+// `request` retries once via the same-origin path so the site keeps working.
+const DIRECT = (import.meta.env.VITE_API_URL ?? '').trim().replace(/\/$/, '')
+const BASES = DIRECT ? [DIRECT, ''] : ['']
+
+async function request(path: string, init: RequestInit): Promise<Response> {
+  let lastErr: unknown
+  for (const base of BASES) {
+    try {
+      return await fetch(`${base}${path}`, init)
+    } catch (err) {
+      // Only network-level failures (TypeError) fall through to the next base.
+      if ((err as Error).name === 'AbortError' || !(err instanceof TypeError)) throw err
+      lastErr = err
+    }
+  }
+  throw lastErr
+}
 
 export class ApiError extends Error {
   status: number
@@ -28,7 +45,7 @@ async function readError(res: Response): Promise<string> {
 export async function extractTables(file: File, signal?: AbortSignal): Promise<ExtractResponse> {
   const form = new FormData()
   form.append('file', file, file.name || 'upload.png')
-  const res = await fetch(`${BASE}/api/extract`, { method: 'POST', body: form, signal })
+  const res = await request('/api/extract', { method: 'POST', body: form, signal })
   if (!res.ok) throw new ApiError(res.status, await readError(res))
   return res.json()
 }
@@ -38,7 +55,7 @@ export async function exportTables(
   format: 'xlsx' | 'csv',
   filename: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/export`, {
+  const res = await request('/api/export', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -66,7 +83,7 @@ export async function exportTables(
 
 export async function pingHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE}/health`, { cache: 'no-store' })
+    const res = await request('/health', { cache: 'no-store' })
     return res.ok
   } catch {
     return false
