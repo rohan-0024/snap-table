@@ -61,76 +61,7 @@ Everything here is free and open source.
 | PDFs | pdfplumber (text PDFs), PyMuPDF (scanned pages) |
 | Export | openpyxl |
 
-## Project structure
 
-```
-snap-table/
-├── backend/
-│   ├── app/
-│   │   ├── main.py         API: POST /api/extract, POST /api/export, GET /health
-│   │   ├── pipeline.py     routes images vs PDFs, joins multi-page tables
-│   │   ├── preprocess.py   grayscale, upscale, deskew, sharpen
-│   │   ├── grid.py         ruled-line grid and merged-cell detection
-│   │   ├── ocr.py          text + positions
-│   │   ├── assemble.py     words → cells (bordered and borderless)
-│   │   ├── tidy.py         number/currency cleanup, header and title detection
-│   │   └── export.py       .xlsx and .csv writers
-│   ├── scripts/            sample generator, smoke test, model download
-│   └── requirements.txt
-├── frontend/
-│   └── src/                React app (upload, editable grid, animations)
-└── render.yaml             one-click backend deploy on Render
-```
-
-## Run it locally
-
-You need Python 3.11+ and Node 20+.
-
-**Backend**
-
-```bash
-cd backend
-python -m venv .venv
-# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-**Frontend** (in a second terminal)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open http://localhost:5173. The dev server forwards `/api` calls to the backend, so no extra setup is needed.
-Click one of the sample tables to try it straight away.
-
-**Test the pipeline without the UI**
-
-```bash
-cd backend
-python scripts/make_samples.py   # creates ruled, borderless, merged-header, tilted and PDF samples
-python scripts/smoke.py          # runs extraction on each and prints the result
-```
-
-## Deploy for free
-
-**Backend → [Render](https://render.com)** (free web service, no credit card)
-
-1. In Render, choose **New → Blueprint** and select this repository. It uses [`render.yaml`](render.yaml).
-2. Once the frontend is live, set `CORS_ORIGINS` on the service to the frontend's URL.
-
-The backend's measured peak memory is about 230 MB, within the free 512 MB. The free service sleeps after
-15 minutes idle, so the first request after that takes about a minute.
-
-**Frontend → [Vercel](https://vercel.com)** or Netlify
-
-1. Import the repository and set the root directory to `frontend`.
-2. Add the environment variables from [`frontend/.env.example`](frontend/.env.example):
-   - `VITE_API_URL`: your Render backend URL
-   - `VITE_WEB3FORMS_KEY`: optional, a free [Web3Forms](https://web3forms.com) key so the "Report an issue" form can send email
 
 ## Privacy
 
