@@ -1,14 +1,18 @@
 """Glue: bytes in -> list of Tables out. Chooses the OCR path or the PDF-text path."""
 from __future__ import annotations
 
-import ctypes
-import gc
 import io
 import os
 import time
 
 import cv2
 import numpy as np
+
+from . import memory
+
+# Containers often report the host's core count; one OpenCV worker per "core" means
+# per-thread buffers and malloc arenas. The free host has 0.1 CPU anyway.
+cv2.setNumThreads(int(os.getenv("CV_THREADS", "1")))
 
 from .assemble import assemble_bordered, assemble_borderless
 from .grid import detect_grid
@@ -27,21 +31,11 @@ class ExtractionError(Exception):
     pass
 
 
-def _release_memory() -> None:
-    """Return freed heap to the OS after a request so RSS doesn't creep toward the
-    host's memory limit across requests (glibc keeps freed arenas otherwise)."""
-    gc.collect()
-    try:
-        ctypes.CDLL("libc.so.6").malloc_trim(0)
-    except (OSError, AttributeError):
-        pass  # not glibc (Windows/macOS) - nothing to do
-
-
 def extract(data: bytes, filename: str = "") -> dict:
     try:
         return _extract(data, filename)
     finally:
-        _release_memory()
+        memory.release()  # return freed heap to the OS so RSS doesn't creep
 
 
 def _extract(data: bytes, filename: str = "") -> dict:

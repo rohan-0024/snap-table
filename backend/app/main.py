@@ -9,13 +9,17 @@ from __future__ import annotations
 import os
 import urllib.parse
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from . import memory
 
-from .export import to_csv, to_xlsx
-from .models import ExportRequest
-from .pipeline import ExtractionError, extract
+memory.tune()  # before numpy/OpenCV/onnxruntime spin up threads
+
+from fastapi import FastAPI, File, HTTPException, UploadFile  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import Response  # noqa: E402
+
+from .export import to_csv, to_xlsx  # noqa: E402
+from .models import ExportRequest  # noqa: E402
+from .pipeline import ExtractionError, extract  # noqa: E402
 
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "15"))
 ALLOWED_TYPES = {"image/png", "image/jpeg", "image/webp", "image/bmp", "image/tiff", "application/pdf"}
@@ -34,7 +38,7 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    return {"status": "ok", "memory": memory.report()}
 
 
 @app.on_event("startup")

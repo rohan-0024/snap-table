@@ -110,5 +110,8 @@ def preprocess(img_bgr: np.ndarray) -> dict:
 
 
 def _is_blurry(gray: np.ndarray, threshold: float = 60.0) -> bool:
-    """Variance of the Laplacian: low values mean soft edges (phone photos)."""
-    return cv2.Laplacian(gray, cv2.CV_64F).var() < threshold
+    """Variance of the Laplacian: low values mean soft edges (phone photos).
+    16-bit Laplacian + meanStdDev instead of float64 + .var(): same number, but no
+    8-bytes-per-pixel temporaries (~60 MB for a 2560x1440 screenshot)."""
+    _, std = cv2.meanStdDev(cv2.Laplacian(gray, cv2.CV_16S))
+    return float(std[0][0]) ** 2 < threshold
