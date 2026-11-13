@@ -84,6 +84,15 @@ export async function extractTables(
       throw new ApiError(res.status, 'The server is taking too long to wake up. Please try again in a minute.')
     }
     res = await send()
+    // Awake, yet the same file failed again: the server crashed while processing it
+    // (most likely out of memory on the free tier), not a cold start.
+    if (GATEWAY_DOWN.has(res.status)) {
+      throw new ApiError(
+        res.status,
+        "The server couldn't finish this image — it may be too large or detailed for the free server. " +
+          'Try cropping closer to the table, or splitting a long table into two screenshots.',
+      )
+    }
   }
   if (!res.ok) throw new ApiError(res.status, await readError(res))
   return res.json()

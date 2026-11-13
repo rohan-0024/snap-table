@@ -1,6 +1,8 @@
 """Glue: bytes in -> list of Tables out. Chooses the OCR path or the PDF-text path."""
 from __future__ import annotations
 
+import ctypes
+import gc
 import io
 import os
 import time
@@ -25,7 +27,24 @@ class ExtractionError(Exception):
     pass
 
 
+def _release_memory() -> None:
+    """Return freed heap to the OS after a request so RSS doesn't creep toward the
+    host's memory limit across requests (glibc keeps freed arenas otherwise)."""
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):
+        pass  # not glibc (Windows/macOS) - nothing to do
+
+
 def extract(data: bytes, filename: str = "") -> dict:
+    try:
+        return _extract(data, filename)
+    finally:
+        _release_memory()
+
+
+def _extract(data: bytes, filename: str = "") -> dict:
     t0 = time.perf_counter()
     if data[:5].startswith(PDF_MAGIC) or filename.lower().endswith(".pdf"):
         tables, path = extract_pdf(data)

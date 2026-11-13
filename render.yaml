@@ -21,5 +21,9 @@ services:
       # 0.1 CPU: keep ONNX Runtime to one thread so it doesn't thrash.
       - key: OMP_NUM_THREADS
         value: "1"
+      # Memory budget for OCR (see backend/app/ocr.py). Lower OCR_DET_MAX_SIDE if the
+      # service is ever OOM-killed again; raise it on a bigger instance for small text.
+      - key: OCR_DET_MAX_SIDE
+        value: "1280"
       - key: MAX_PDF_PAGES
         value: "15"
